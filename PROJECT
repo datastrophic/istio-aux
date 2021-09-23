@@ -1,0 +1,6 @@
+domain: io.datastrophic
+layout:
+- go.kubebuilder.io/v3
+projectName: istio-aux
+repo: com.github/datastrophic/istio-aux
+version: "3"
