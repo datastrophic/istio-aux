@@ -29,15 +29,30 @@ func getAuxContainer(containerName string, containerImage string, pollIntervalSe
 }
 
 func SetMetadata(meta *metav1.ObjectMeta) {
-	if val, found := meta.Labels[IstioAuxLabelName]; found {
-		logger.Info(fmt.Sprintf("Job %s already has label '%s' set to '%s'", meta.Name, IstioAuxLabelName, val))
-	} else {
-		meta.Labels[IstioAuxLabelName] = IstioAuxLabelValue
+	setLabel(meta, IstioAuxLabelName, IstioAuxLabelValue)
+	setAnnotation(meta, IstioPodAnnotationName, IstioPodAnnotationValue)
+}
+
+func setLabel(meta *metav1.ObjectMeta, key string, value string) {
+	if meta.Labels == nil {
+		meta.Labels = make(map[string]string)
 	}
 
-	if val, found := meta.Annotations[IstioPodAnnotationName]; found {
-		logger.Info(fmt.Sprintf("Job %s already has label '%s' set to '%s'", meta.Name, IstioPodAnnotationName, val))
+	if val, found := meta.Labels[IstioAuxLabelName]; found {
+		logger.Info(fmt.Sprintf("Pod %s already has label '%s' set to '%s'", meta.Name, key, val))
 	} else {
-		meta.Labels[IstioPodAnnotationName] = IstioPodAnnotationValue
+		meta.Labels[key] = value
+	}
+}
+
+func setAnnotation(meta *metav1.ObjectMeta, key string, value string) {
+	if meta.Annotations == nil {
+		meta.Annotations = make(map[string]string)
+	}
+
+	if val, found := meta.Labels[key]; found {
+		logger.Info(fmt.Sprintf("Pod %s already has annotation '%s' set to '%s'", meta.Name, key, val))
+	} else {
+		meta.Annotations[key] = value
 	}
 }

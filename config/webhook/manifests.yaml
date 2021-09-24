@@ -12,7 +12,7 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-v1-pods
+      path: /mutate-v1-pod
   failurePolicy: Fail
   name: istio-aux.datastrophic.io
   namespaceSelector:
