@@ -3,4 +3,13 @@ layout:
 - go.kubebuilder.io/v3
 projectName: istio-aux
 repo: com.github/datastrophic/istio-aux
+resources:
+- domain: io.datastrophic
+  group: kubeflow.org
+  kind: PyTorchJob
+  path: com.github/datastrophic/istio-aux/api/v1
+  version: v1
+  webhooks:
+    conversion: true
+    webhookVersion: v1
 version: "3"
