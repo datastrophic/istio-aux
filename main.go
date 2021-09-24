@@ -25,7 +25,6 @@ import (
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	istio_aux "com.github/datastrophic/istio-aux/pkg"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -33,6 +32,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	"com.github/datastrophic/istio-aux/controllers"
+	istio_aux "com.github/datastrophic/istio-aux/pkg"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -76,6 +78,15 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
+	if err = (&controllers.PodReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Pod")
+		os.Exit(1)
+	}
+	//+kubebuilder:scaffold:builder
 
 	mgr.GetWebhookServer().Register("/mutate-v1-pod", &webhook.Admission{Handler: &istio_aux.PodMutator{Client: mgr.GetClient()}})
 

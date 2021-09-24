@@ -27,7 +27,7 @@ func (a *PodMutator) Handle(ctx context.Context, req admission.Request) admissio
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	// checking the target namespace exists and has required labels
+	// checking the target namespace exists and has required labels - TODO: this can be achieved via NS selector
 	namespaces := &corev1.NamespaceList{}
 	err = a.Client.List(context.Background(), namespaces)
 	if err != nil {
