@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	logger = ctrl.Log.WithName("tfjob")
+	logger = ctrl.Log.WithName("istio-aux")
 )
 
 func InjectAuxContainer(pod *corev1.Pod) {
@@ -39,7 +39,7 @@ func setLabel(meta *metav1.ObjectMeta, key string, value string) {
 	}
 
 	if val, found := meta.Labels[IstioAuxLabelName]; found {
-		logger.Info(fmt.Sprintf("Pod %s already has label '%s' set to '%s'", meta.Name, key, val))
+		logger.Info(fmt.Sprintf("Pod %s already has label %s set to %s", meta.Name, key, val))
 	} else {
 		meta.Labels[key] = value
 	}
@@ -51,8 +51,37 @@ func setAnnotation(meta *metav1.ObjectMeta, key string, value string) {
 	}
 
 	if val, found := meta.Labels[key]; found {
-		logger.Info(fmt.Sprintf("Pod %s already has annotation '%s' set to '%s'", meta.Name, key, val))
+		logger.Info(fmt.Sprintf("pod %s already has annotation %s set to %s", meta.Name, key, val))
 	} else {
 		meta.Annotations[key] = value
 	}
+}
+
+func CheckNamespaceMeta(meta *metav1.ObjectMeta) error {
+	if meta.Labels == nil {
+		return fmt.Errorf("required labels are not provided for namespace %s", meta.Name)
+	}
+
+	err := checkNamespaceLabel(meta, IstioAuxLabelName, IstioAuxLabelValue)
+	if err != nil {
+		return err
+	}
+
+	err = checkNamespaceLabel(meta, IstioInjectionLabelName, IstioInjectionLabelValue)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func checkNamespaceLabel(meta *metav1.ObjectMeta, key string, value string) error {
+	val, ok := meta.Labels[key]
+	if !ok {
+		return fmt.Errorf("required label %s is not provided for namespace %s", key, meta.Name)
+	}
+	if value != val {
+		return fmt.Errorf("required label %s is provided but set to %s for namespace %s. expected value: %s", key, val, meta.Name, value)
+	}
+	return nil
 }
