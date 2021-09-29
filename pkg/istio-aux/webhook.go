@@ -1,7 +1,23 @@
+/*
+Copyright 2021.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 // +kubebuilder:webhook:path=/mutate-v1-pod,mutating=true,admissionReviewVersions=v1,failurePolicy=fail,groups="",resources=pods,verbs=create;update,versions=v1,sideEffects=None,name=istio-aux.datastrophic.io
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;patch;delete
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch
-package pkg
+package istioaux
 
 import (
 	"context"
@@ -40,42 +56,9 @@ func (a *PodMutator) Handle(ctx context.Context, req admission.Request) admissio
 	      operator: In
 		  values: ["enabled"]
 	*/
-	// // checking the target namespace exists and has required labels - TODO: this can be achieved via NS selector
-	// namespaces := &corev1.NamespaceList{}
-	// logger.Info("found namespaces:", "total", len(namespaces.Items), "namespaces", namespaces.String())
-	// err = a.Client.List(context.Background(), namespaces)
-	// if err != nil {
-	// 	return admission.Errored(http.StatusBadRequest, err)
-	// }
-
-	// var namespace *corev1.Namespace = nil
-	// for _, ns := range namespaces.Items {
-	// 	logger.Info("processing", "ns", ns.ObjectMeta.Name, "pod namespace", pod.Namespace)
-	// 	if ns.ObjectMeta.Name == pod.Namespace {
-	// 		namespace = &ns
-	// 		logger.Info("namespace found", "name", ns.ObjectMeta.Name)
-	// 		break
-	// 	}
-	// }
-
-	// if namespace != nil {
-	// 	logger.WithName("webhook").Info("checking NS labels")
-
-	// 	err = CheckNamespaceMeta(&namespace.ObjectMeta)
-	// 	if err != nil {
-	// 		msg := fmt.Sprintf("target namespace %s doesn't specify required labels. istio-aux will skip mutation. cause: %s", namespace.ObjectMeta.Name, err)
-	// 		logger.WithName("webhook").Info(msg)
-	// 		return admission.Allowed(msg)
-	// 	}
-	// } else {
-	// 	msg := fmt.Sprintf("target namespace %s doesn't exist. istio-aux will skip mutation", pod.Namespace)
-	// 	logger.WithName("webhook").Info(msg)
-	// 	return admission.Allowed(msg)
-	// }
 
 	logger.WithName("webhook").Info(fmt.Sprintf("processing pod %s", pod.ObjectMeta.Name))
 	SetMetadata(&pod.ObjectMeta)
-	// InjectAuxContainer(pod)  // TODO: revisit after the controller is done
 	logger.WithName("webhook").Info(fmt.Sprintf("pod %s processed", pod.ObjectMeta.Name))
 
 	marshaledPod, err := json.Marshal(pod)

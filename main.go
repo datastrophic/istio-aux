@@ -34,8 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	"com.github/datastrophic/istio-aux/controllers"
-	istio_aux "com.github/datastrophic/istio-aux/pkg"
+	"com.github/datastrophic/istio-aux/pkg/istio-aux"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	//+kubebuilder:scaffold:imports
@@ -92,7 +91,7 @@ func main() {
 		setupLog.Error(err, "unable to create REST client")
 	}
 
-	if err = (&controllers.PodReconciler{
+	if err = (&istioaux.PodReconciler{
 		Client:     mgr.GetClient(),
 		RESTClient: restClient,
 		RESTConfig: mgr.GetConfig(),
@@ -103,7 +102,7 @@ func main() {
 	}
 	//+kubebuilder:scaffold:builder
 
-	mgr.GetWebhookServer().Register("/mutate-v1-pod", &webhook.Admission{Handler: &istio_aux.PodMutator{Client: mgr.GetClient()}})
+	mgr.GetWebhookServer().Register("/mutate-v1-pod", &webhook.Admission{Handler: &istioaux.PodMutator{Client: mgr.GetClient()}})
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")

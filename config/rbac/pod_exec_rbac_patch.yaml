@@ -1,0 +1,39 @@
+- op: add
+  path: "/rules/1"
+  value:
+    apiGroups:
+      - ""
+    resources:
+      - pods/exec
+    verbs:
+      - get
+      - create
+- op: add
+  path: "/rules/1"
+  value:
+    apiGroups:
+      - ""
+    resources:
+      - pods/logs
+    verbs:
+      - get
+
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: ClusterRole
+# metadata:
+#   name: manager-role
+# rules:
+# - apiGroups:
+#   - ""
+#   resources:
+#   - pods/exec
+#   verbs:
+#   - get
+#   - create
+# - apiGroups:
+#   - ""
+#   resources:
+#   - pods/logs
+#   verbs:
+#   - get
+

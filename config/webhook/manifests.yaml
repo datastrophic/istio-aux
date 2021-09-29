@@ -15,14 +15,6 @@ webhooks:
       path: /mutate-v1-pod
   failurePolicy: Fail
   name: istio-aux.datastrophic.io
-  namespaceSelector:
-    matchExpressions:
-    - key: io.datastrophic/istio-aux
-      operator: In
-      values: ["enabled"]
-    - key: istio-injection
-      operator: In
-      values: ["enabled"]
   rules:
   - apiGroups:
     - ""
