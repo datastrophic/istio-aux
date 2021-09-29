@@ -19,22 +19,32 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"net/http"
+	"os"
 
+	istio_aux "com.github/datastrophic/istio-aux/pkg"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/remotecommand"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 // PodReconciler reconciles a Pod object
 type PodReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	RESTClient rest.Interface
+	RESTConfig *rest.Config
+	Scheme     *runtime.Scheme
 }
 
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=pods/exec,verbs=get;create;
+//+kubebuilder:rbac:groups=core,resources=pods/log,verbs=get;list
 //+kubebuilder:rbac:groups=core,resources=pods/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=core,resources=pods/finalizers,verbs=update
 
@@ -49,7 +59,7 @@ type PodReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.8.3/pkg/reconcile
 func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	
+
 	pod := &corev1.Pod{}
 
 	err := r.Get(ctx, req.NamespacedName, pod)
@@ -60,26 +70,67 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	statuses := pod.Status.ContainerStatuses
 	if len(statuses) >= 2 && statuses[0].Name == "istio-proxy" {
-		state := statuses[1].State
+		istioState := statuses[0].State
+		payloadState := statuses[1].State
 
-		if state.Terminated != nil && state.Terminated.ExitCode == 0 {
-			url := fmt.Sprintf("%s.%s:15020/quitquitquit", req.NamespacedName.Name, req.NamespacedName.Namespace)
-			resp, err := http.Post(url, "", nil)
+		// This needs additional triaging to verify the behavior when the main container restart/failures happen
+		if istioState.Running != nil && payloadState.Terminated != nil && payloadState.Terminated.ExitCode == 0 {
+			logger.Info("the payload container is terminated, shutting down istio proxy", "pod", req.NamespacedName.String())
+			execReq := r.RESTClient.
+				Post().
+				Namespace(pod.Namespace).
+				Resource("pods").
+				Name(pod.Name).
+				SubResource("exec").
+				VersionedParams(&corev1.PodExecOptions{
+					Container: "istio-proxy",
+					Command:   []string{"sh", "-c", "curl -sf -XPOST http://127.0.0.1:15020/quitquitquit"},
+					Stdin:     true,
+					Stdout:    true,
+					Stderr:    true,
+				}, runtime.NewParameterCodec(r.Scheme))
+
+			exec, err := remotecommand.NewSPDYExecutor(r.RESTConfig, "POST", execReq.URL())
 			if err != nil {
-				logger.Error(err, "failed to curl")
-				return ctrl.Result{}, client.IgnoreNotFound(err)
+				return ctrl.Result{}, fmt.Errorf("error while creating remote command executor: %v", err)
 			}
-			defer resp.Body.Close()
+
+			err = exec.Stream(remotecommand.StreamOptions{
+				Stdin:  os.Stdin,
+				Stdout: os.Stdout,
+				Stderr: os.Stderr,
+				Tty:    false,
+			})
+			if err != nil {
+				return ctrl.Result{}, fmt.Errorf("error while running exec: %v", err)
+			}
 		}
 	}
 
 	return ctrl.Result{}, nil
 }
 
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}).
+		WithEventFilter(getPredicate()).
 		Complete(r)
+}
+
+func getPredicate() predicate.Predicate {
+	eventTypesPredicate := predicate.Funcs{
+		CreateFunc:  func(e event.CreateEvent) bool { return false },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
+		GenericFunc: func(e event.GenericEvent) bool { return false },
+		UpdateFunc:  func(e event.UpdateEvent) bool { return true },
+	}
+
+	labelSelector, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{MatchLabels: map[string]string{istio_aux.IstioAuxLabelName: istio_aux.IstioAuxLabelValue}})
+	if err != nil {
+		ctrl.Log.Error(err, "unable to create label selector predicate")
+		return eventTypesPredicate
+	}
+
+	return predicate.And(eventTypesPredicate, labelSelector)
 }

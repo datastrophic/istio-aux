@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	corev1 "k8s.io/api/core/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -20,6 +21,7 @@ type PodMutator struct {
 }
 
 func (a *PodMutator) Handle(ctx context.Context, req admission.Request) admission.Response {
+	logger := ctrl.Log.WithName("webhook")
 	pod := &corev1.Pod{}
 
 	err := a.decoder.Decode(req, pod)
@@ -27,38 +29,54 @@ func (a *PodMutator) Handle(ctx context.Context, req admission.Request) admissio
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	// checking the target namespace exists and has required labels - TODO: this can be achieved via NS selector
-	namespaces := &corev1.NamespaceList{}
-	err = a.Client.List(context.Background(), namespaces)
-	if err != nil {
-		return admission.Errored(http.StatusBadRequest, err)
-	}
+	/* not checking for the target namespace existense and required labels
+	as they can be configured via a namespaceSelector in the MutatingWebhookConfiguration:
+	  namespaceSelector:
+		matchExpressions:
+		- key: io.datastrophic/istio-aux
+	      operator: In
+		  values: ["enabled"]
+		- key: istio-injection
+	      operator: In
+		  values: ["enabled"]
+	*/
+	// // checking the target namespace exists and has required labels - TODO: this can be achieved via NS selector
+	// namespaces := &corev1.NamespaceList{}
+	// logger.Info("found namespaces:", "total", len(namespaces.Items), "namespaces", namespaces.String())
+	// err = a.Client.List(context.Background(), namespaces)
+	// if err != nil {
+	// 	return admission.Errored(http.StatusBadRequest, err)
+	// }
 
-	var namespace *corev1.Namespace = nil
-	for _, ns := range namespaces.Items {
-		if ns.ObjectMeta.Name == pod.Namespace {
-			namespace = &ns
-			break
-		}
-	}
+	// var namespace *corev1.Namespace = nil
+	// for _, ns := range namespaces.Items {
+	// 	logger.Info("processing", "ns", ns.ObjectMeta.Name, "pod namespace", pod.Namespace)
+	// 	if ns.ObjectMeta.Name == pod.Namespace {
+	// 		namespace = &ns
+	// 		logger.Info("namespace found", "name", ns.ObjectMeta.Name)
+	// 		break
+	// 	}
+	// }
 
-	if namespace != nil {
-		err = CheckNamespaceMeta(&namespace.ObjectMeta)
-		if err != nil {
-			msg := fmt.Sprintf("target namespace %s doesn't specify required labels. istio-aux will skip mutation. cause: %s", namespace.ObjectMeta.Name, err)
-			logger.WithName("webhook").Info(msg)
-			return admission.Allowed(msg)
-		}
-	} else {
-		msg := fmt.Sprintf("target namespace %s doesn't exist. istio-aux will skip mutation", namespace.ObjectMeta.Name)
-		logger.WithName("webhook").Info(msg)
-		return admission.Allowed(msg)
-	}
+	// if namespace != nil {
+	// 	logger.WithName("webhook").Info("checking NS labels")
 
-	logger.WithName("webhook").Info(fmt.Sprintf("processing pod %s/%s", namespace.ObjectMeta.Name, pod.ObjectMeta.Name))
+	// 	err = CheckNamespaceMeta(&namespace.ObjectMeta)
+	// 	if err != nil {
+	// 		msg := fmt.Sprintf("target namespace %s doesn't specify required labels. istio-aux will skip mutation. cause: %s", namespace.ObjectMeta.Name, err)
+	// 		logger.WithName("webhook").Info(msg)
+	// 		return admission.Allowed(msg)
+	// 	}
+	// } else {
+	// 	msg := fmt.Sprintf("target namespace %s doesn't exist. istio-aux will skip mutation", pod.Namespace)
+	// 	logger.WithName("webhook").Info(msg)
+	// 	return admission.Allowed(msg)
+	// }
+
+	logger.WithName("webhook").Info(fmt.Sprintf("processing pod %s", pod.ObjectMeta.Name))
 	SetMetadata(&pod.ObjectMeta)
 	// InjectAuxContainer(pod)  // TODO: revisit after the controller is done
-	logger.WithName("webhook").Info(fmt.Sprintf("pod %s/%s processed", namespace.ObjectMeta.Name, pod.ObjectMeta.Name))
+	logger.WithName("webhook").Info(fmt.Sprintf("pod %s processed", pod.ObjectMeta.Name))
 
 	marshaledPod, err := json.Marshal(pod)
 	if err != nil {
