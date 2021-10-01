@@ -13,4 +13,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: datastrophic/istio-aux
-  newTag: d8d7d24
+  newTag: 71c283b
