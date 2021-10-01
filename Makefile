@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-ISTIO_AUX_VERSION ?= latest
+ISTIO_AUX_VERSION ?= $(shell git rev-parse --short HEAD)
 IMG ?= datastrophic/istio-aux:$(ISTIO_AUX_VERSION)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"

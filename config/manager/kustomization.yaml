@@ -12,5 +12,5 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: controller
-  newName: akirillov/kubeflow
-  newTag: istio-aux
+  newName: datastrophic/istio-aux
+  newTag: d8d7d24
