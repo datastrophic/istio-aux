@@ -3,6 +3,8 @@ A simple controller that configures Istio Proxy for matching payloads to delay t
 until the Proxy is ready and ensures the completion of Job-like resources by shutting down the Proxy
 upon the main container exit.
 
+Check out this blog post to learn more about the history of the problem, prior art of solving it, and the motivation for the Istio Aux Controller: [Kubeflow Training Operators and Istio: solving the proxy sidecar lifecycle problem for AI/ML workloads](http://datastrophic.io/kubeflow-training-operators-and-istio-solving-the-proxy-sidecar-lifecycle-problem-for-aiml-workloads/)
+
 ## Quick Start
 ### Prerequisites
 You should have a Kubernetes cluster available, kind will suffice but ensure the Docker daemon has sufficient resources to accommodate for cert-manager, Istio, Kubeflow training operator, and run a two-pod TFJob (8CPU, 8GB RAM should be sufficient). The following software is required:
@@ -16,13 +18,13 @@ The cluster setup is pretty straightforward and includes installation of all the
 kind create cluster
 
 # wait for node(s) to become ready
-kubectl wait --for condition=Ready nodes
+kubectl wait --for condition=Ready node --all
 
 # install cert-manager
 kubectl create -f https://github.com/jetstack/cert-manager/releases/download/v1.5.3/cert-manager.yaml
 
 # wait for pods to become ready
-kubectl wait --for=condition=Ready pods --namespace cert-manager
+kubectl wait --for=condition=Ready pods --all --namespace cert-manager
 
 # install istio
 istioctl install --set profile=demo -y
@@ -30,8 +32,11 @@ istioctl install --set profile=demo -y
 # install the training operator
 kubectl apply -k "github.com/kubeflow/tf-operator.git/manifests/overlays/standalone?ref=master"
 
-# install the Istio AUX controller
+# wait for pods to become ready
+kubectl wait --for=condition=Ready pods --all --namespace kubeflow
 
+# install the Istio AUX controller
+kubectl apply -k "github.com/datastrophic/istio-aux.git/config/default?ref=master"
 ```
 
 ### A `TFJob` example
@@ -77,7 +82,31 @@ This time, all the pods reached the `Completed` state.
 
 In the meantime, the Istio AUX Controller logs contain an output like this:
 ```
-
+...
+INFO	webhook.webhook	processing pod mnist-worker-0
+INFO	webhook.webhook	pod mnist-worker-0 processed
+...
+INFO	webhook.webhook	processing pod mnist-worker-1
+INFO	webhook.webhook	pod mnist-worker-1 processed
+...
+INFO	istio-aux	found a pod with istio proxy, checking container statuses	{"pod": "mnist-worker-0"}
+INFO	istio-aux	some containers are still running, skipping istio proxy shutdown	{"pod": "mnist-worker-0", "containers": ["tensorflow"]}
+...
+INFO	istio-aux	found a pod with istio proxy, checking container statuses	{"pod": "mnist-worker-1"}
+INFO	istio-aux	some containers are still running, skipping istio proxy shutdown	{"pod": "mnist-worker-1", "containers": ["tensorflow"]}
+...
+INFO	istio-aux	found a pod with istio proxy, checking container statuses	{"pod": "mnist-worker-0"}
+INFO	istio-aux	the payload containers are terminated, proceeding with the proxy shutdown	{"pod": "mnist-worker-0"}
+...
+INFO	istio-aux	found a pod with istio proxy, checking container statuses	{"pod": "mnist-worker-1"}
+INFO	istio-aux	the payload containers are terminated, proceeding with the proxy shutdown	{"pod": "mnist-worker-1"}
+...
+INFO	istio-aux	found a pod with istio proxy, checking container statuses	{"pod": "mnist-worker-0"}
+INFO	istio-aux	istio-proxy is already in a terminated state	{"pod": "mnist-worker-0"}
+...
+INFO	istio-aux	found a pod with istio proxy, checking container statuses	{"pod": "mnist-worker-1"}
+INFO	istio-aux	istio-proxy is already in a terminated state	{"pod": "mnist-worker-1"}
+...
 ```
 
 ## How it works
