@@ -26,6 +26,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -49,16 +51,33 @@ func setLabel(meta *metav1.ObjectMeta, key string, value string) {
 	}
 }
 
-func setAnnotation(meta *metav1.ObjectMeta, key string, value string) {
+func setAnnotation(meta *metav1.ObjectMeta, key string, value map[string]interface{}) {
+
 	if meta.Annotations == nil {
 		meta.Annotations = make(map[string]string)
 	}
 
-	if val, found := meta.Labels[key]; found {
-		logger.Info(fmt.Sprintf("pod %s already has annotation %s set to %s", meta.Name, key, val))
-	} else {
-		meta.Annotations[key] = value
+	if val, found := meta.Annotations[key]; found {
+		logger.Info(fmt.Sprintf("pod %s already has annotation %s set to %s, merging...", meta.Name, key, val))
+
+		// so, the value is supposed to be yaml...
+		existing := map[string]interface{}{}
+		if err := yaml.Unmarshal([]byte(val), &existing); err == nil {
+			for k, v := range existing {
+				value[k] = v
+			}
+		} else {
+			logger.Error(err, "pod %s error unmarshaling existing %s annotation value %s", meta.Name, key, val)
+		}
+
 	}
+
+	if marshaled, err := yaml.Marshal(value); err == nil {
+		meta.Annotations[key] = string(marshaled)
+	} else {
+		logger.Error(err, "pod %s error marshaling %s annotation value %v", meta.Name, key, value)
+	}
+
 }
 
 func NewRESTRequest(client rest.Interface, codec runtime.ParameterCodec, namespace string, pod string) *rest.Request {
