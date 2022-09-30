@@ -20,7 +20,10 @@ const IstioAuxLabelName = "io.datastrophic/istio-aux"
 const IstioAuxLabelValue = "enabled"
 
 const IstioPodAnnotationName = "proxy.istio.io/config"
-const IstioPodAnnotationValue = "holdApplicationUntilProxyStarts: true"
+
+var IstioPodAnnotationValue = map[string]interface{}{
+	"holdApplicationUntilProxyStarts": true,
+}
 
 const IstioInjectionLabelName = "istio-injection"
 const IstioInjectionLabelValue = "enabled"
