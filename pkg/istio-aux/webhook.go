@@ -22,7 +22,6 @@ package istioaux
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	corev1 "k8s.io/api/core/v1"
@@ -57,9 +56,9 @@ func (a *PodMutator) Handle(ctx context.Context, req admission.Request) admissio
 		  values: ["enabled"]
 	*/
 
-	logger.WithName("webhook").Info(fmt.Sprintf("processing pod %s", pod.ObjectMeta.Name))
+	logger.WithName("webhook").Info("processing", "pod-generate-name", pod.GenerateName, "pod-name", pod.ObjectMeta.Name)
 	SetMetadata(&pod.ObjectMeta)
-	logger.WithName("webhook").Info(fmt.Sprintf("pod %s processed", pod.ObjectMeta.Name))
+	logger.WithName("webhook").Info("processed", "pod-generate-name", pod.GenerateName, "pod-name", pod.ObjectMeta.Name)
 
 	marshaledPod, err := json.Marshal(pod)
 	if err != nil {

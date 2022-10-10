@@ -34,9 +34,19 @@ var (
 	logger = ctrl.Log.WithName("istio-aux")
 )
 
+func usingMapCopy(input map[string]interface{}) map[string]interface{} {
+	copy := map[string]interface{}{}
+	for k, v := range input {
+		copy[k] = v
+	}
+	return copy
+}
+
 func SetMetadata(meta *metav1.ObjectMeta) {
 	setLabel(meta, IstioAuxLabelName, IstioAuxLabelValue)
-	setAnnotation(meta, IstioPodAnnotationName, IstioPodAnnotationValue)
+	// IstioPodAnnotationValue is no longer const and there's only one copy in memory!
+	// So, it's a template do NOT modify it, use it as a template!
+	setAnnotation(meta, IstioPodAnnotationName, usingMapCopy(IstioPodAnnotationValue))
 }
 
 func setLabel(meta *metav1.ObjectMeta, key string, value string) {
@@ -51,7 +61,7 @@ func setLabel(meta *metav1.ObjectMeta, key string, value string) {
 	}
 }
 
-func setAnnotation(meta *metav1.ObjectMeta, key string, value map[string]interface{}) {
+func setAnnotation(meta *metav1.ObjectMeta, key string, localValue map[string]interface{}) {
 
 	if meta.Annotations == nil {
 		meta.Annotations = make(map[string]string)
@@ -64,7 +74,7 @@ func setAnnotation(meta *metav1.ObjectMeta, key string, value map[string]interfa
 		existing := map[string]interface{}{}
 		if err := yaml.Unmarshal([]byte(val), &existing); err == nil {
 			for k, v := range existing {
-				value[k] = v
+				localValue[k] = v
 			}
 		} else {
 			logger.Error(err, "pod %s error unmarshaling existing %s annotation value %s", meta.Name, key, val)
@@ -72,10 +82,10 @@ func setAnnotation(meta *metav1.ObjectMeta, key string, value map[string]interfa
 
 	}
 
-	if marshaled, err := yaml.Marshal(value); err == nil {
+	if marshaled, err := yaml.Marshal(localValue); err == nil {
 		meta.Annotations[key] = string(marshaled)
 	} else {
-		logger.Error(err, "pod %s error marshaling %s annotation value %v", meta.Name, key, value)
+		logger.Error(err, "pod %s error marshaling %s annotation value %v", meta.Name, key, localValue)
 	}
 
 }
