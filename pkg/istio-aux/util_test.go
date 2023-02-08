@@ -24,6 +24,12 @@ func TestSetAnnotation(t *testing.T) {
 				"OUTPUT_CERTS": "/etc/istio-output-certs",
 			},
 		}
+		expectedAnnotation := map[string]interface{}{
+			"holdApplicationUntilProxyStarts": true,
+			"proxyMetadata": map[string]interface{}{
+				"OUTPUT_CERTS": "/etc/istio-output-certs",
+			},
+		}
 		objectMeta := &metav1.ObjectMeta{
 			Annotations: map[string]string{
 				IstioPodAnnotationName: toYaml(tt, existingAnnotation),
@@ -32,7 +38,7 @@ func TestSetAnnotation(t *testing.T) {
 		SetMetadata(objectMeta)
 		assert.NotNil(tt, objectMeta.Annotations)
 		assert.Contains(tt, objectMeta.Annotations, IstioPodAnnotationName)
-		assert.Equal(tt, "holdApplicationUntilProxyStarts: true\nproxyMetadata:\n  OUTPUT_CERTS: /etc/istio-output-certs\n", toYaml(tt, IstioPodAnnotationValue))
+		assert.Equal(tt, "holdApplicationUntilProxyStarts: true\nproxyMetadata:\n  OUTPUT_CERTS: /etc/istio-output-certs\n", toYaml(tt, expectedAnnotation))
 	})
 
 	t.Run("it=does not override when pods annotation contained a value", func(tt *testing.T) {
@@ -50,7 +56,7 @@ func TestSetAnnotation(t *testing.T) {
 		SetMetadata(objectMeta)
 		assert.NotNil(tt, objectMeta.Annotations)
 		assert.Contains(tt, objectMeta.Annotations, IstioPodAnnotationName)
-		assert.Equal(tt, "holdApplicationUntilProxyStarts: false\nproxyMetadata:\n  OUTPUT_CERTS: /etc/istio-output-certs\n", toYaml(tt, IstioPodAnnotationValue))
+		assert.Equal(tt, "holdApplicationUntilProxyStarts: false\nproxyMetadata:\n  OUTPUT_CERTS: /etc/istio-output-certs\n", toYaml(tt, existingAnnotation))
 	})
 
 }
